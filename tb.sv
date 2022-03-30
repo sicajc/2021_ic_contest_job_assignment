@@ -2,7 +2,7 @@
 `define CYCLE      10.0  
 `define SDFFILE    "./JAM_syn.sdf"
 `define End_CYCLE  10000000
-`define PAT        "cost_rom"
+`define PAT        "D:/IC_contest/2022_ic_contest_job_assignment/cost_rom"
 
 `ifdef P1
     `define PAT_NUM 1 
