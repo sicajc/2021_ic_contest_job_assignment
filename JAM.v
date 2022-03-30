@@ -61,7 +61,7 @@ module JAM (input CLK,
   assign test_counts =( counter_reg - 'd1);
 
   assign compare_val_gt_flag = (counter_pointer_val > ref_point_val);
-  assign is_min_flag         = (counter_pointer_val <  min_reg);
+  assign is_min_flag         = compare_val_gt_flag & (counter_pointer_val <  min_reg);
   assign min_work_lt_flag    = (min_reg < min_work_reg) ;
 
   reg[2:0] current_state,next_state;
@@ -236,8 +236,15 @@ module JAM (input CLK,
         end
         FLIP:
         begin
-          j_seq_reg[head_pointer] <= j_seq_reg[end_pointer] ;
-          j_seq_reg[end_pointer] <= j_seq_reg[head_pointer] ;
+          if(!flip_done_flag) begin
+            j_seq_reg[head_pointer] <= j_seq_reg[end_pointer] ;
+            j_seq_reg[end_pointer] <= j_seq_reg[head_pointer] ;
+          end
+          else 
+          begin
+            j_seq_reg[head_pointer] <= j_seq_reg[head_pointer] ;
+            j_seq_reg[end_pointer]  <= j_seq_reg[end_pointer] ;
+          end
         end
         default:
         begin
