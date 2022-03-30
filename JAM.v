@@ -1,10 +1,10 @@
 module JAM (input CLK,
             input RST,
-            output reg [POINT_ADDR-1:0] W,
-            output reg [POINT_ADDR-1:0] J,
+            output  [POINT_ADDR-1:0] W,
+            output  [POINT_ADDR-1:0] J,
             input [6:0] Cost,
             output reg [3:0] MatchCount,
-            output reg [9:0] MinCost,
+            output [9:0] MinCost,
             output reg Valid);
 
 
@@ -29,6 +29,7 @@ module JAM (input CLK,
     reg[DATA_WIDTH-1:0] min_reg;
     reg[POINT_ADDR-1:0] min_index_reg ;
     reg[15:0] sort_times_reg;
+    reg[POINT_ADDR-1:0] min_work_reg;
 
     wire[POINT_ADDR-1:0] counter_pointer_val;
     wire[POINT_ADDR-1:0] ref_pointer_val;
@@ -44,15 +45,20 @@ module JAM (input CLK,
     wire find_ref_done_flag;
     wire replace_done_flag;
     wire flip_done_flag;
-    wire compare_val_gt;
+    wire compare_val_gt_flag;
+    wire min_work_lt_flag;
+    wire min_work_eq_flag;
 
+    assign min_work_eq_flag   = min_reg == min_work_reg;
     assign rd_rom_done_flag   = counter_reg == 'd7 ;
     assign done_flag          = sort_times_reg == SORT_TIMES-1;
     assign find_ref_done_flag = j_seq_reg[counter_reg] > j_seq_reg[counter_reg-1];
     assign replace_done_flag  = counter_reg == ref_index_reg + 1 ;
     assign flip_done_flag     = head_pointer <= end_pointer;
-    assign compare_val_gt     = counter_pointer_val > ref_point_val;
-    assign is_min_flag        = counter_pointer_val <  min_reg;
+
+    assign compare_val_gt_flag = counter_pointer_val > ref_point_val;
+    assign is_min_flag         = counter_pointer_val <  min_reg;
+    assign min_work_lt_flag    = min_reg < min_work_reg ;
 
     wire state_IDLE     ;
     wire state_FIND_REF ;
@@ -71,8 +77,8 @@ module JAM (input CLK,
     assign state_DONE     = current_state == DONE;
 
 
+    //MAIN CTR
     reg[3:0] current_state,next_state;
-
     always @(posedge CLK or posedge RST)
     begin
         current_state <= RST ? IDLE : next_state;
@@ -84,34 +90,42 @@ module JAM (input CLK,
             IDLE:
             begin
                 next_state = RD_ROM ;
+                Valid      = 0;
             end
             RD_ROM:
             begin
                 next_state = rd_rom_done_flag ? MIN_CAL : RD_ROM;
+                Valid      = 0;
             end
             MIN_CAL:
             begin
                 next_state = done_flag ? DONE : FIND_REF;
+                Valid      = 0;
             end
             FIND_REF:
             begin
                 next_state = find_ref_done_flag ? REPLACE : FIND_REF;
+                Valid      = 0;
             end
             REPLACE:
             begin
                 next_state = replace_done_flag ? FLIP : REPLACE;
+                Valid      = 0;
             end
             FLIP:
             begin
                 next_state = flip_done_flag ? RD_ROM : FLIP;
+                Valid      = 0;
             end
             DONE:
             begin
                 next_state = IDLE;
+                Valid      = 1;
             end
             default:
             begin
                 next_state = IDLE;
+                Valid      = 0;
             end
         endcase
     end
@@ -255,7 +269,7 @@ module JAM (input CLK,
                 end
                 REPLACE:
                 begin
-                    min_reg <= compare_val_gt ? is_min_flag ? counter_pointer_val : min_reg : min_reg;
+                    min_reg <= compare_val_gt_flag ? is_min_flag ? counter_pointer_val : min_reg : min_reg;
                 end
                 FLIP:
                 begin
@@ -322,5 +336,47 @@ module JAM (input CLK,
             sort_times_reg <= sort_times_reg;
         end
     end
+
+    //min_work_Reg
+    always @(posedge CLK or posedge RST)
+    begin
+        if (RST)
+        begin
+            min_work_reg <= 'd0;
+        end
+        else if (state_RD_ROM)
+        begin
+            min_work_reg <= min_work_lt_flag ? min_reg : min_work_reg;
+        end
+        else
+        begin
+            min_work_reg <= min_work_reg;
+        end
+    end
+
+
+    //Match count reg
+    always @(posedge CLK or posedge RST)
+    begin
+        if (RST)
+        begin
+            MatchCount <= 'd0;
+        end
+        else if (state_MIN_CAL)
+        begin
+            MatchCount <= min_work_lt_flag ? 'd1 : min_work_eq_flag ? MatchCount + 'd1 : MatchCount;
+        end
+        else
+        begin
+            MatchCount <= MatchCount;
+        end
+    end
+
+    assign MinCost = state_DONE ? min_work_reg : 'd0;
+
+    assign W = counter_reg;
+    assign J = j_seq_reg[counter_reg];
+
+
 
 endmodule
