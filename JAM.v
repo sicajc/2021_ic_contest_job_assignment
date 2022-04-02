@@ -236,11 +236,12 @@ module JAM (input CLK,
         end
         FLIP:
         begin
-          if(!flip_done_flag) begin
+          if(!flip_done_flag)
+          begin
             j_seq_reg[head_pointer] <= j_seq_reg[end_pointer] ;
             j_seq_reg[end_pointer] <= j_seq_reg[head_pointer] ;
           end
-          else 
+          else
           begin
             j_seq_reg[head_pointer] <= j_seq_reg[head_pointer] ;
             j_seq_reg[end_pointer]  <= j_seq_reg[end_pointer] ;
